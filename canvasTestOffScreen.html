@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Perf test</title>
+</head>
+
+<body>
+</body>
+
+</html>
+
+<canvas id="c" width="640" height="480"></canvas>
+<script>
+
+  var canvas = document.getElementById('c');
+
+
+  async function bench() {
+    testData = await fetch('testdata.json').then(rep => rep.json());
+    console.log(canvas);
+    const offscreen = document.getElementById('c').transferControlToOffscreen();
+    const worker = new Worker("worker.js");
+    worker.postMessage({ canvas: offscreen, testData: testData }, [offscreen]);
+  }
+  bench();
+
+</script>
