@@ -13,7 +13,7 @@
 
 </html>
 
-<canvas id="c" width="640" height="480"></canvas>
+<canvas id="c" width="1175" height="1200"></canvas>
 <script>
 
   var canvas = document.getElementById('c');
@@ -24,10 +24,9 @@
 
 
   function setDrawingContext(d) {
-
     for (const command of d.commands) {
-      const destX = command.x;
-      const destY = command.y;
+      const destX = (canvas.width / 2) + d.topLeft[0] + (command.x * d.scaleX);
+      const destY = (canvas.height / 2) + d.topLeft[1] + (command.y * d.scaleY);
       if (command.type === 2) {
         context.moveTo(destX, destY);
       } else if (command.type === 16) {
@@ -82,7 +81,8 @@
     context.strokeStyle = 'blue';
     const allPath = new Path2D();
     for (const data of testData) {
-      allPath.addPath(data.path2d);
+      const matrix = {a: data.scaleX, d: data.scaleY, e: data.topLeft[0] + (canvas.width / 2), f: data.topLeft[1] + (canvas.height / 2)};
+      allPath.addPath(data.path2d, matrix);
     }
     context.fill(allPath);
     context.stroke(allPath);
@@ -116,12 +116,12 @@
     let t1 = performance.now();
     console.log(`Call to 100x drawSameStyle took ${t1 - t0} milliseconds.`);
 
-    t0 = performance.now();
-    for (let i = 0; i < 100; i++) {
-      drawPaths();
-    }
-    t1 = performance.now();
-    console.log(`Call to 100x drawPaths took ${t1 - t0} milliseconds.`);
+    // t0 = performance.now();
+    // for (let i = 0; i < 100; i++) {
+    //   drawPaths();
+    // }
+    // t1 = performance.now();
+    // console.log(`Call to 100x drawPaths took ${t1 - t0} milliseconds.`);
 
     t0 = performance.now();
     for (let i = 0; i < 100; i++) {
@@ -139,4 +139,8 @@
   }
   bench();
 
+
+// TODO: test on Edge (results should be similar as Chrome)
+// Chrome performance is WAAAAAAAY better with drawPathsAppended (to a degree that is suspicious)
 </script>
+
