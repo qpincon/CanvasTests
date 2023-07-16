@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Perf test</title>
+</head>
+
+<body>
+  <button onclick="bench()"> Bench! </button>
+</body>
+
+</html>
+
+<canvas id="c" width="1200" height="1200"></canvas>
+<script>
+
+  const canvas = document.getElementById('c');
+  const context = canvas.getContext('2d');
+  const offscreen = new OffscreenCanvas(6, 12);
+  const offContext = offscreen.getContext('2d');
+
+  const shipShape = new Path2D('M0,-8L3,0L3,4L0,1L-3,4L-3,0L0,-8');
+  const shipCommands = [
+    { x: 0, y: -8, type: 2 },
+    { x: 3, y: 0, type: 16 },
+    { x: 3, y: 4, type: 16 },
+    { x: 0, y: 1, type: 16 },
+    { x: -3, y: 4, type: 16 },
+    { x: -3, y: 0, type: 16 },
+    { x: 0, y: -8, type: 16 },
+  ];
+  const width = canvas.width;
+  const height = canvas.height;
+  const colors = [];
+  for (let i = 0; i < 10; ++i) {
+    colors.push('#' + (Math.random() * 0xFFFFFF << 0).toString(16));
+  }
+  function generateTestData(numberOfElem) {
+    const elems = [];
+    for (let i = 0; i < numberOfElem; ++i) {
+      const point = {
+        pos: [Math.random() * width, Math.random() * height],
+        rotation: Math.random() * 360,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      };
+      point.rotationRad = point.rotation * Math.PI / 180;
+      const cssTransform = `translate(${point.pos[0]}px, ${point.pos[1]}px) rotate(${point.rotation}deg)`;
+      const matrix = new DOMMatrix(cssTransform);
+      point.initMatrix = {
+        a: matrix.a,
+        b: matrix.b,
+        c: matrix.c,
+        d: matrix.d,
+        e: matrix.e,
+        f: matrix.f,
+      };
+      elems.push(point);
+    }
+    return elems;
+  }
+
+  function cleanCanvas() {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, width, height);
+  }
+
+  function setDrawingContext(commands, point) {
+    for (const command of commands) {
+      let destX = command.x;
+      let destY = command.y;
+      if (point) {
+        destX += point.pos[0];
+        destY += point.pos[1];
+      }
+      if (command.type === 2) {
+        context.moveTo(destX, destY);
+      } else if (command.type === 16) {
+        context.lineTo(destX, destY);
+      } else if (command.type === 1) {
+        context.closePath();
+      } else {
+        console.error('Command not implemented');
+      }
+    }
+  }
+
+
+  // iterate all shapes, and draw them one by one
+  function drawNaive() {
+    for (const point of points) {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.translate(point.pos[0], point.pos[1]);
+      context.rotate(point.rotationRad);
+      context.fillStyle = point.color;
+      context.fill(shipShape);
+      // context.stroke(shipShape);
+    }
+    context.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function groupByColor() {
+    return points.reduce((acc, point) => {
+      if (point.color in acc) {
+        acc[point.color].push(point);
+      } else {
+        acc[point.color] = [point];
+      }
+      return acc;
+    }, {});
+  }
+
+
+  // does not work: the transform methods only work when defining the path to draw
+  function drawGroupedByColorSamePath() {
+    cleanCanvas();
+    const grouped = groupByColor();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.beginPath();
+    setDrawingContext(shipCommands);
+    Object.values(grouped).forEach(pointsSameColor => {
+      context.fillStyle = pointsSameColor[0].color;
+      for (let point of pointsSameColor) {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.translate(point.pos[0], point.pos[1]);
+        // context.rotate(point.rotationRad);
+        context.fill();
+      }
+    });
+  }
+
+  function drawGroupedByColorNaive() {
+    cleanCanvas();
+    const grouped = groupByColor();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    Object.values(grouped).forEach(pointsSameColor => {
+      context.fillStyle = pointsSameColor[0].color;
+      for (let point of pointsSameColor) {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.translate(point.pos[0], point.pos[1]);
+        context.rotate(point.rotationRad);
+        context.fillStyle = point.color;
+        context.fill(shipShape);
+      }
+    });
+  }
+
+  // does not work
+  function drawGroupedByColor() {
+    cleanCanvas();
+    const grouped = groupByColor();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    Object.values(grouped).forEach(pointsSameColor => {
+      context.beginPath();
+      for (let point of pointsSameColor) {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        setDrawingContext(shipCommands, point);
+        context.rotate(point.rotationRad);
+      }
+      context.fillStyle = pointsSameColor[0].color;
+      context.fill();
+    });
+  }
+
+  function drawGroupedByColorAddPath() {
+    cleanCanvas();
+    const grouped = groupByColor();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    Object.values(grouped).forEach(pointsSameColor => {
+      const allPath = new Path2D();
+      for (const point of pointsSameColor) {
+        // const cssTransform = `rotate(${point.rotation}deg) translate(${point.pos[0]}px, ${point.pos[1]}px)`;
+
+        // matrix.translate(point.pos[0], point.pos[1], 0);
+        // matrix.translate(point.pos[0], point.pos[1], 0).rotate(point.rotation).translate(-point.pos[0], -point.pos[1], 0);
+        // const matrix = { e: point.pos[0], f: point.pos[1] };
+        allPath.addPath(shipShape, point.initMatrix);
+      }
+      context.fillStyle = pointsSameColor[0].color;
+      context.fill(allPath);
+    });
+  }
+
+  function drawOffscreenToCanvas() {
+    const grouped = groupByColor();
+    Object.values(grouped).forEach(pointsSameColor => {
+      // render to offscreen
+      offContext.clearRect(0, 0, 6, 12)
+      offContext.setTransform(1, 0, 0, 1, 0, 0);
+      offContext.translate(3, 6); // path has 6px width and 12px height
+      offContext.fillStyle = pointsSameColor[0].color;
+      offContext.fill(shipShape);
+      for (const point of pointsSameColor) {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.translate(point.pos[0], point.pos[1]);
+        context.rotate(point.rotationRad);
+        context.drawImage(offscreen, - 3, -6);
+        // context.drawImage(offscreen, point.pos[0] - 3, point.pos[1] - 6);
+      }
+    });
+  }
+
+  async function prepareBitmaps() {
+    const grouped = groupByColor();
+    const colorToBitmap = {};
+    for (const pointsSameColor of Object.values(grouped)) {
+      // render to offscreen
+      offContext.clearRect(0, 0, 6, 12)
+      offContext.setTransform(1, 0, 0, 1, 0, 0);
+      offContext.translate(3, 6); // path has 6px width and 12px height
+      offContext.fillStyle = pointsSameColor[0].color;
+      offContext.fill(shipShape);
+      const img = await createImageBitmap(offscreen);
+      colorToBitmap[pointsSameColor[0].color] = img;
+    }
+    return colorToBitmap;
+  }
+
+  async function drawBitmapToCanvasUnprepared() {
+    const grouped = groupByColor();
+    for (const pointsSameColor of Object.values(grouped)) {
+      // render to offscreen
+      offContext.clearRect(0, 0, 6, 12)
+      offContext.setTransform(1, 0, 0, 1, 0, 0);
+      offContext.translate(3, 6); // path has 6px width and 12px height
+      offContext.fillStyle = pointsSameColor[0].color;
+      offContext.fill(shipShape);
+      const img = await createImageBitmap(offscreen);
+      for (const point of pointsSameColor) {
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.translate(point.pos[0], point.pos[1]);
+        context.rotate(point.rotationRad);
+        context.drawImage(img, -3, -6);
+        // context.drawImage(img, point.pos[0] - 3, point.pos[1] - 6);
+      }
+    }
+  }
+
+  function drawBitmapToCanvasPrepared(colorToBitmap) {
+    for (const point of points) {
+      // context.save();
+      // context.rotate(point.rotationRad);
+      // context.restore();
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.translate(point.pos[0], point.pos[1]);
+      context.rotate(point.rotationRad);
+      context.drawImage(colorToBitmap[point.color], -3, -6);
+      // context.drawImage(colorToBitmap[point.color], point.pos[0] - 3, point.pos[1] - 6);
+    }
+  }
+
+  // const points = [
+    //   {
+      //     pos: [
+        //       300,
+        //       300
+        //     ],
+        //     rotation: 45,
+  //     rotationRad: 45 * Math.PI / 180,
+  //     color: "#89e800",
+  //   }
+  // ];
+  // const cssTransform = `translate(${points[0].pos[0]}px, ${points[0].pos[1]}px) rotate(${points[0].rotation}deg)`;
+  // const matrix = new DOMMatrix(cssTransform);
+  // points[0].initMatrix = {
+  //   a: matrix.a,
+  //   b: matrix.b,
+  //   c: matrix.c,
+  //   d: matrix.d,
+  //   e: matrix.e,
+  //   f: matrix.f,
+  // };
+  // console.log(points);
+  
+  const points = generateTestData(120000);
+
+  console.log(points);
+
+  let t0, t1;
+  async function bench() {
+    t0 = performance.now();
+    drawNaive();
+    t1 = performance.now();
+    console.log(`Call to drawNaive took ${t1 - t0} milliseconds.`);
+    cleanCanvas();
+
+    // // NOT WORKING
+    // t0 = performance.now();
+    // drawGroupedByColor();
+    // t1 = performance.now();
+    // console.log(`Call to drawGroupedByColor took ${t1 - t0} milliseconds.`);
+    // cleanCanvas();
+    
+    // // NOT WORKING
+    // t0 = performance.now();
+    // drawGroupedByColorSamePath();
+    // t1 = performance.now();
+    // console.log(`Call to drawGroupedByColorSamePath took ${t1 - t0} milliseconds.`);
+    // cleanCanvas();
+
+    t0 = performance.now();
+    drawGroupedByColorNaive();
+    t1 = performance.now();
+    console.log(`Call to drawGroupedByColorNaive took ${t1 - t0} milliseconds.`);
+    cleanCanvas();
+    
+    t0 = performance.now();
+    drawGroupedByColorAddPath();
+    t1 = performance.now();
+    console.log(`Call to drawGroupedByColorAddPath took ${t1 - t0} milliseconds.`);
+    cleanCanvas();
+
+    t0 = performance.now();
+    drawOffscreenToCanvas();
+    t1 = performance.now();
+    console.log(`Call to drawOffscreenToCanvas took ${t1 - t0} milliseconds.`);
+    cleanCanvas();
+
+    t0 = performance.now();
+    await drawBitmapToCanvasUnprepared();
+    t1 = performance.now();
+    console.log(`Call to drawBitmapToCanvasUnprepared took ${t1 - t0} milliseconds.`);
+    cleanCanvas();
+
+    t0 = performance.now();
+    const bitmaps = await prepareBitmaps();
+    t1 = performance.now();
+    console.log(`Preparing bitmaps took ${t1 - t0} milliseconds.`);
+    t0 = performance.now();
+    drawBitmapToCanvasPrepared(bitmaps);
+    t1 = performance.now();
+    console.log(`Call to drawBitmapToCanvasPrepared took ${t1 - t0} milliseconds.`);
+  }
+  // bench();
+  window.bench = bench;
+
+
+</script>

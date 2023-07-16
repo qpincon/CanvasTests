@@ -82,7 +82,11 @@
     const allPath = new Path2D();
     for (const data of testData) {
       const matrix = {a: data.scaleX, d: data.scaleY, e: data.topLeft[0] + (canvas.width / 2), f: data.topLeft[1] + (canvas.height / 2)};
+      // const cssTransform = `translate(${data.topLeft[0] + (canvas.width / 2)}px, ${data.topLeft[1] + (canvas.height / 2)}px) scale(${data.scaleX}, ${data.scaleY})`;
+      // const matrix = new DOMMatrix(cssTransform);
+      // console.log(matrix);
       allPath.addPath(data.path2d, matrix);
+      // allPath.addPath(data.path2d, new DOMMatrix(`translate(${data.topLeft[0] + (canvas.width / 2)}px, ${data.topLeft[1] + (canvas.height / 2)}px) scale(${data.scaleX}, ${data.scaleY})`));
     }
     context.fill(allPath);
     context.stroke(allPath);
@@ -100,7 +104,7 @@
   // console.log(worker);
   // worker.postMessage({ canvas: offscreen, testData: testData }, [offscreen]);
 
-
+  let t0, t1;
   async function bench() {
     testData = await fetch('testdata.json').then(rep => rep.json());
     console.log(testData);
@@ -108,13 +112,13 @@
       x.path2d = new Path2D(x.pathString);
     });
     context = canvas.getContext('2d');
-    console.log('Benching', testData.length, 'elements');
-    let t0 = performance.now();
-    for (let i = 0; i < 100; i++) {
-      drawSameStyle();
-    }
-    let t1 = performance.now();
-    console.log(`Call to 100x drawSameStyle took ${t1 - t0} milliseconds.`);
+    // console.log('Benching', testData.length, 'elements');
+    // t0 = performance.now();
+    // for (let i = 0; i < 100; i++) {
+    //   drawSameStyle();
+    // }
+    // t1 = performance.now();
+    // console.log(`Call to 100x drawSameStyle took ${t1 - t0} milliseconds.`);
 
     // t0 = performance.now();
     // for (let i = 0; i < 100; i++) {
@@ -130,12 +134,12 @@
     t1 = performance.now();
     console.log(`Call to 100x drawPathsAppended took ${t1 - t0} milliseconds.`);
 
-    t0 = performance.now();
-    for (let i = 0; i < 100; i++) {
-      drawSameStyleFragmented();
-    }
-    t1 = performance.now();
-    console.log(`Call to 100x drawSameStyleFragmented took ${t1 - t0} milliseconds.`);
+    // t0 = performance.now();
+    // for (let i = 0; i < 100; i++) {
+    //   drawSameStyleFragmented();
+    // }
+    // t1 = performance.now();
+    // console.log(`Call to 100x drawSameStyleFragmented took ${t1 - t0} milliseconds.`);
   }
   bench();
 
