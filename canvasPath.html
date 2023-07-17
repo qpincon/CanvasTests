@@ -11,8 +11,6 @@
 <body>
 </body>
 
-</html>
-
 <canvas id="c" width="1175" height="1200"></canvas>
 <script>
 
@@ -112,20 +110,20 @@
       x.path2d = new Path2D(x.pathString);
     });
     context = canvas.getContext('2d');
-    // console.log('Benching', testData.length, 'elements');
-    // t0 = performance.now();
-    // for (let i = 0; i < 100; i++) {
-    //   drawSameStyle();
-    // }
-    // t1 = performance.now();
-    // console.log(`Call to 100x drawSameStyle took ${t1 - t0} milliseconds.`);
+    console.log('Benching', testData.length, 'elements');
+    t0 = performance.now();
+    for (let i = 0; i < 100; i++) {
+      drawSameStyle();
+    }
+    t1 = performance.now();
+    console.log(`Call to 100x drawSameStyle took ${t1 - t0} milliseconds.`);
 
-    // t0 = performance.now();
-    // for (let i = 0; i < 100; i++) {
-    //   drawPaths();
-    // }
-    // t1 = performance.now();
-    // console.log(`Call to 100x drawPaths took ${t1 - t0} milliseconds.`);
+    t0 = performance.now();
+    for (let i = 0; i < 100; i++) {
+      drawPaths();
+    }
+    t1 = performance.now();
+    console.log(`Call to 100x drawPaths took ${t1 - t0} milliseconds.`);
 
     t0 = performance.now();
     for (let i = 0; i < 100; i++) {
@@ -134,12 +132,12 @@
     t1 = performance.now();
     console.log(`Call to 100x drawPathsAppended took ${t1 - t0} milliseconds.`);
 
-    // t0 = performance.now();
-    // for (let i = 0; i < 100; i++) {
-    //   drawSameStyleFragmented();
-    // }
-    // t1 = performance.now();
-    // console.log(`Call to 100x drawSameStyleFragmented took ${t1 - t0} milliseconds.`);
+    t0 = performance.now();
+    for (let i = 0; i < 100; i++) {
+      drawSameStyleFragmented();
+    }
+    t1 = performance.now();
+    console.log(`Call to 100x drawSameStyleFragmented took ${t1 - t0} milliseconds.`);
   }
   bench();
 
@@ -148,3 +146,4 @@
 // Chrome performance is WAAAAAAAY better with drawPathsAppended (to a degree that is suspicious)
 </script>
 
+</html>
